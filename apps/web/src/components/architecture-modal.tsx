@@ -10,7 +10,7 @@ type ArchitectureModalProps = {
   onClose: () => void;
 };
 
-export function ArchitectureModal({ document, onClose }: ArchitectureModalProps) {
+export function ArchitectureModal({ document: doc, onClose }: ArchitectureModalProps) {
   const [svgContent, setSvgContent] = useState<string>("");
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
@@ -22,7 +22,7 @@ export function ArchitectureModal({ document, onClose }: ArchitectureModalProps)
   }, []);
 
   useEffect(() => {
-    if (!document || document.kind !== "paper") return;
+    if (!doc || doc.kind !== "paper") return;
     
     // Initialize mermaid
     mermaid.initialize({
@@ -38,7 +38,7 @@ export function ArchitectureModal({ document, onClose }: ArchitectureModalProps)
       }
     });
 
-    const code = generateMermaidCode(document.paper, isMobile);
+    const code = generateMermaidCode(doc.paper, isMobile);
     
     // Render
     const renderDiagram = async () => {
@@ -52,7 +52,7 @@ export function ArchitectureModal({ document, onClose }: ArchitectureModalProps)
     };
     
     renderDiagram();
-  }, [document, isMobile]);
+  }, [doc, isMobile]);
 
   // Handle escape key
   useEffect(() => {
@@ -64,12 +64,12 @@ export function ArchitectureModal({ document, onClose }: ArchitectureModalProps)
   }, [onClose]);
 
   const handleDownload = () => {
-    if (!svgContent) return;
+    if (!svgContent || !doc || doc.kind !== "paper") return;
     const blob = new Blob([svgContent], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
     const a = window.document.createElement("a");
     a.href = url;
-    const safeTitle = document.kind === "paper" ? document.paper.title.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 30) : "diagram";
+    const safeTitle = doc.paper.title.replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 30);
     a.download = `${safeTitle}_architecture.svg`;
     window.document.body.appendChild(a);
     a.click();
@@ -77,7 +77,7 @@ export function ArchitectureModal({ document, onClose }: ArchitectureModalProps)
     URL.revokeObjectURL(url);
   };
 
-  if (!document || document.kind !== "paper") return null;
+  if (!doc || doc.kind !== "paper") return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300 p-0 sm:p-8">
@@ -115,8 +115,8 @@ export function ArchitectureModal({ document, onClose }: ArchitectureModalProps)
             </div>
             <div className="min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-slate-100 tracking-tight truncate">Project Architecture</h2>
-              <p className="text-xs sm:text-sm text-slate-400 truncate w-[150px] sm:w-auto max-w-xs md:max-w-md lg:max-w-xl" title={document.paper.title}>
-                {document.paper.title}
+              <p className="text-xs sm:text-sm text-slate-400 truncate w-[150px] sm:w-auto max-w-xs md:max-w-md lg:max-w-xl" title={doc.paper.title}>
+                {doc.paper.title}
               </p>
             </div>
           </div>
