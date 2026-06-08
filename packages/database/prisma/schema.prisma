@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum resource_type {
+  journal_paper
+  youtube_video
+  free_course
+  paid_certification
+}
+
+model learning_resources {
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                   String
+  author_or_creator       String
+  type                    resource_type
+  description             String?
+  external_url            String                 @unique
+  thumbnail_url           String?
+  is_free                 Boolean?               @default(true)
+  certification_available Boolean?               @default(false)
+  platform_name           String?
+  tags                    String[]
+  created_at              DateTime?              @default(now()) @db.Timestamptz(6)
+  journal_audio_tracks    journal_audio_tracks[]
+}
+
+model journal_audio_tracks {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resource_id        String             @db.Uuid
+  audio_url          String
+  duration_seconds   Int
+  transcript_json    Json
+  voice_model_used   String?            @default("edge-tts")
+  learning_resources learning_resources @relation(fields: [resource_id], references: [id], onDelete: Cascade)
+}

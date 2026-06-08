@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Local Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+**/src/**/.env*
+
+# Build Folders
+.next/
+out/
+build/
+dist/
+
+# PDF Scraper Downloads
+packages/scrapers/downloads/
+
+# RAG Vector Brain Database Cache
+apps/web/data/rag-cache/
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.tsbuildinfo
+
+# Test scripts
+test-gemini.mjs
+test-sdk.mjs
+test-nlp.ts
+test-api-route.mjs
+test-dev-route.mjs
+test-rag-execution.mjs

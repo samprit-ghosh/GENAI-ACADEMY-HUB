@@ -1,0 +1,16 @@
+{
+  "name": "@my-genai-hub/scrapers",
+  "version": "1.0.0",
+  "scripts": {
+    "seed": "tsx seed.ts",
+    "arxiv": "tsx arxiv.ts"
+  },
+  "dependencies": {
+    "@my-genai-hub/database": "*",
+    "@prisma/client": "^5.10.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}
