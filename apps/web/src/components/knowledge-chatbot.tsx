@@ -110,14 +110,14 @@ export function KnowledgeChatbot({ activePaper, papers = [] }: { activePaper: Re
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 z-50 p-4 bg-indigo-600 text-white rounded-full shadow-xl hover:bg-indigo-700 transition-all hover:scale-105 ${isOpen ? "hidden" : "flex"}`}
+        className={`fixed bottom-20 md:bottom-6 right-6 z-50 p-4 bg-indigo-600 text-white rounded-full shadow-xl hover:bg-indigo-700 transition-all hover:scale-105 ${isOpen ? "hidden" : "flex"}`}
       >
         <MessageSquare className="w-6 h-6" />
       </button>
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 w-full sm:w-[400px] h-[85dvh] sm:h-[550px] max-h-[100dvh] sm:max-h-[85vh] bg-slate-900 sm:border border-t border-slate-700 rounded-t-2xl sm:rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+        <div className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[400px] h-[85dvh] md:h-[550px] max-h-[100dvh] md:max-h-[85vh] bg-slate-900 md:border border-t border-slate-700 rounded-t-2xl md:rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
           {/* Header */}
           <div className="flex items-center justify-between p-4 bg-slate-800 border-b border-slate-700 shrink-0">
             <div className="flex items-center gap-3">

@@ -26,18 +26,25 @@ export async function POST(request: Request) {
       chunks.push(currentChunk.trim());
     }
 
-    // Fetch all audio chunks in sequence to preserve playback order
-    const buffers: Buffer[] = [];
-    for (const chunk of chunks) {
+    // Fetch all audio chunks in parallel to preserve speed, then preserve order
+    const chunkPromises = chunks.map(async (chunk, index) => {
       const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(chunk)}`;
       const response = await fetch(url);
       if (response.ok) {
         const arrayBuffer = await response.arrayBuffer();
-        buffers.push(Buffer.from(arrayBuffer));
+        return { index, buffer: Buffer.from(arrayBuffer) };
       } else {
-        console.warn(`Failed to fetch chunk: ${chunk}`);
+        console.warn(`Failed to fetch chunk at index ${index}: ${chunk}`);
+        return { index, buffer: null };
       }
-    }
+    });
+
+    const results = await Promise.all(chunkPromises);
+    results.sort((a, b) => a.index - b.index);
+
+    const buffers = results
+      .filter(r => r.buffer !== null)
+      .map(r => r.buffer as Buffer);
 
     if (buffers.length === 0) {
       return new NextResponse("Failed to generate audio chunks", { status: 500 });

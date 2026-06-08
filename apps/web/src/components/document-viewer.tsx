@@ -28,6 +28,17 @@ export function DocumentViewer({
   const isSyncingRef = useRef(false);
   const { playTrack, playTTS } = useAudio();
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // PDF Audio state
   const [loadingPdfText, setLoadingPdfText] = useState(false);
@@ -511,7 +522,7 @@ export function DocumentViewer({
               </div>
             )}
             <iframe
-              src={`/api/pdf?id=${encodeURIComponent(paper.id)}`}
+              src={`/api/pdf?id=${encodeURIComponent(paper.id)}${isMobile ? "#scrollbar=0&navpanes=0" : ""}`}
               className="w-full h-full border-0"
               title={paper.title}
               onLoad={() => {

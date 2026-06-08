@@ -20,6 +20,42 @@ type AudioContextType = {
   availableVoices: SpeechSynthesisVoice[];
 };
 
+const splitTextIntoSpeechChunks = (text: string, maxLen = 200): string[] => {
+  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)|[^,;]+[,;]+(\s|$)|.+?(\s|$)/g) || [text];
+  const chunks: string[] = [];
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    if ((currentChunk + sentence).length > maxLen) {
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+        currentChunk = "";
+      }
+      
+      if (sentence.length > maxLen) {
+        const words = sentence.split(/\s+/);
+        for (const word of words) {
+          if (currentChunk.length + word.length + 1 > maxLen) {
+            chunks.push(currentChunk.trim());
+            currentChunk = word + " ";
+          } else {
+            currentChunk += word + " ";
+          }
+        }
+      } else {
+        currentChunk = sentence;
+      }
+    } else {
+      currentChunk += sentence;
+    }
+  }
+  
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+  return chunks;
+};
+
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
@@ -34,6 +70,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ttsUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const rateRef = useRef(1);
+
+  useEffect(() => {
+    rateRef.current = playbackRate;
+  }, [playbackRate]);
 
   // Load voices — they load asynchronously in Chrome/Edge
   useEffect(() => {
@@ -228,41 +269,60 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     // Double check that user hasn't stopped playback while we were translating
     if (!window.speechSynthesis) return;
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.rate = playbackRate;
-    // Setting lang forces the browser to try and use an appropriate cloud/OS voice if an exact voice isn't matched
-    if (targetLang !== "en") {
-      utterance.lang = activeVoiceType === "en-IN-female" ? "en-IN" : (activeVoiceType as string);
-    } else {
-      utterance.lang = "en-US";
-    }
-    
-    // Apply voice selection
-    const selectedVoice = getVoiceForType(activeVoiceType as any);
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
-    
-    utterance.onboundary = (event) => {
-      if (event.name === "word") {
-        const p = (event.charIndex / text.length) * 100;
-        setProgress(isNaN(p) ? 0 : p);
+    const chunks = splitTextIntoSpeechChunks(textToSpeak, 200);
+    const totalLength = textToSpeak.length || 1;
+    let totalCharsSpoken = 0;
+    let activeIndex = 0;
+
+    const speakNext = () => {
+      if (!window.speechSynthesis) return;
+      if (activeIndex >= chunks.length) {
+        setIsPlaying(false);
+        setProgress(100);
+        return;
       }
-    };
-    
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setProgress(100);
+
+      const chunk = chunks[activeIndex];
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utterance.rate = rateRef.current;
+
+      if (targetLang !== "en") {
+        utterance.lang = activeVoiceType === "en-IN-female" ? "en-IN" : (activeVoiceType as string);
+      } else {
+        utterance.lang = "en-US";
+      }
+
+      const selectedVoice = getVoiceForType(activeVoiceType as any);
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+
+      const currentChunkOffset = totalCharsSpoken;
+
+      utterance.onboundary = (event) => {
+        if (event.name === "word") {
+          const absoluteCharIndex = currentChunkOffset + event.charIndex;
+          const p = (absoluteCharIndex / totalLength) * 100;
+          setProgress(isNaN(p) ? 0 : p);
+        }
+      };
+
+      utterance.onend = () => {
+        totalCharsSpoken += chunk.length + 1; // plus space/separator
+        activeIndex++;
+        speakNext();
+      };
+
+      utterance.onerror = (e) => {
+        if (e.error === "interrupted" || e.error === "canceled") return;
+        setIsPlaying(false);
+      };
+
+      ttsUtteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
     };
 
-    utterance.onerror = (e) => {
-      // "interrupted" and "canceled" errors are expected when stopping/restarting TTS
-      if (e.error === "interrupted" || e.error === "canceled") return;
-      setIsPlaying(false);
-    };
-    
-    ttsUtteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+    speakNext();
   };
 
   const stopTTS = () => {

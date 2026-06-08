@@ -9,7 +9,7 @@ import { PptModal } from "@/components/ppt-modal";
 import { ArchitectureModal } from "@/components/architecture-modal";
 import { KnowledgeChatbot } from "@/components/knowledge-chatbot";
 import { useAudio } from "@/components/audio-provider";
-import { Volume2, Download, Loader2, Clipboard, Database, Code2, Presentation, Library, LayoutTemplate, Activity } from "lucide-react";
+import { Volume2, Download, Loader2, Clipboard, Database, Code2, Presentation, Library, LayoutTemplate, Activity, Settings2 } from "lucide-react";
 import type { ResearchPaper, Course } from "@/lib/types";
 
 export type SelectedDocument = {
@@ -39,6 +39,7 @@ export default function Home() {
   const [isLoadingMorePapers, setIsLoadingMorePapers] = useState(false);
   const { playTTS } = useAudio();
   const [mobileTab, setMobileTab] = useState<"library" | "viewer" | "insights">("library");
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
 
   // Fetch papers from API route
   const fetchPapers = useCallback(async (query?: string, pageNum = 0) => {
@@ -132,10 +133,20 @@ export default function Home() {
     fetchCourses(filter, searchQuery || undefined);
   }, [filter, fetchCourses, searchQuery]);
 
-  // Reset PDF load state when changing documents
+  // Reset PDF load state and actions menu when changing documents
   useEffect(() => {
     setIsPdfLoaded(false);
+    setIsActionsMenuOpen(false);
   }, [leftDoc, rightDoc, compareMode]);
+
+  // Close actions menu when window blurs (e.g. user clicks inside the PDF iframe)
+  useEffect(() => {
+    const handleBlur = () => {
+      setIsActionsMenuOpen(false);
+    };
+    window.addEventListener("blur", handleBlur);
+    return () => window.removeEventListener("blur", handleBlur);
+  }, []);
 
   const handleSelectDocument = (doc: SelectedDocument) => {
     if (compareMode) {
@@ -164,11 +175,17 @@ export default function Home() {
       if (text && text.trim().length > 0) {
         playTTS(text.trim(), "Copied Text");
       } else {
-        alert("Your clipboard is empty! Please copy some text from the PDF first (Ctrl+C), then click this button.");
+        const pastedText = prompt("We couldn't read your clipboard automatically. Please paste the text you want to listen to below:");
+        if (pastedText && pastedText.trim().length > 0) {
+          playTTS(pastedText.trim(), "Pasted Text");
+        }
       }
     } catch (err) {
       console.error("Clipboard access denied or failed", err);
-      alert("Failed to read clipboard. Please make sure you granted clipboard permissions, or try copying text again.");
+      const pastedText = prompt("Clipboard access is restricted. Please paste the text you want to listen to below:");
+      if (pastedText && pastedText.trim().length > 0) {
+        playTTS(pastedText.trim(), "Pasted Text");
+      }
     }
   };
 
@@ -237,71 +254,88 @@ export default function Home() {
 
       {/* Middle Column: Active Document Viewer */}
       <div className={`flex-1 flex-col relative overflow-hidden ${mobileTab === 'viewer' ? 'flex' : 'hidden md:flex'}`}>
-        <div className="h-14 border-b border-border flex items-center justify-between px-4 shrink-0 bg-card/50 backdrop-blur-sm z-10 flex-wrap gap-2 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-3">
-            <h1 className="font-semibold tracking-tight">
+        <div className="h-14 border-b border-border flex items-center justify-between px-3 md:px-4 shrink-0 bg-card/50 backdrop-blur-sm z-10 gap-2 relative">
+          {/* Left/Main Side: Title & Status */}
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="font-semibold tracking-tight text-xs sm:text-sm md:text-base truncate">
               {compareMode ? "Compare Documents" : "Active Document"}
             </h1>
             {compareMode && (
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              <span className="text-[10px] md:text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full shrink-0">
                 {!leftDoc
-                  ? "Select 1st paper →"
+                  ? "Select 1st"
                   : !rightDoc
-                  ? "Select 2nd paper →"
-                  : "Scroll synced ✓"}
+                  ? "Select 2nd"
+                  : "Synced"}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {/* Read Copied Text button (Hidden in Compare Mode) */}
+
+          {/* Right Side Controls */}
+          <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+            {/* Desktop View Buttons: Hidden on Mobile */}
+            {!compareMode && activePaper && (
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  onClick={handleReadCopiedText}
+                  disabled={!isPdfLoaded}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-emerald-500/10"
+                  title={isPdfLoaded ? "Highlight text in the PDF, copy it (Ctrl+C), then click here to listen" : "Wait for PDF to load..."}
+                >
+                  <Clipboard className="w-3.5 h-3.5" />
+                  Read Copied Text
+                </button>
+
+                <button
+                  onClick={handleListenFullPdf}
+                  disabled={loadingPdfText || !isPdfLoaded}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-amber-500/10"
+                  title={isPdfLoaded ? "" : "Wait for PDF to load..."}
+                >
+                  {loadingPdfText ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Volume2 className="w-3.5 h-3.5" />
+                  )}
+                  {loadingPdfText ? "Loading..." : "Listen Full PDF"}
+                </button>
+
+                <button
+                  onClick={handleDownload}
+                  disabled={!isPdfLoaded}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
+                  title={isPdfLoaded ? "" : "Wait for PDF to load..."}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download PDF
+                </button>
+              </div>
+            )}
+
+            {/* Mobile Actions Dropdown Trigger Button */}
             {!compareMode && activePaper && (
               <button
-                onClick={handleReadCopiedText}
+                onClick={() => setIsActionsMenuOpen(!isActionsMenuOpen)}
                 disabled={!isPdfLoaded}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-emerald-500/10"
-                title={isPdfLoaded ? "Highlight text in the PDF, copy it (Ctrl+C), then click here to listen" : "Wait for PDF to load..."}
+                className={`flex md:hidden items-center justify-center p-2 rounded-md transition-all border shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isActionsMenuOpen 
+                    ? "bg-primary text-primary-foreground border-primary" 
+                    : "bg-muted/30 text-muted-foreground hover:text-foreground border-border/50"
+                }`}
+                title={isPdfLoaded ? "Audio & PDF Options" : "Wait for PDF to load..."}
               >
-                <Clipboard className="w-3.5 h-3.5" />
-                Read Copied Text
+                <Settings2 className="w-4 h-4" />
               </button>
             )}
 
-            {/* Listen Full PDF button (Hidden in Compare Mode) */}
-            {!compareMode && activePaper && (
-              <button
-                onClick={handleListenFullPdf}
-                disabled={loadingPdfText || !isPdfLoaded}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-amber-500/10"
-                title={isPdfLoaded ? "" : "Wait for PDF to load..."}
-              >
-                {loadingPdfText ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Volume2 className="w-3.5 h-3.5" />
-                )}
-                {loadingPdfText ? "Loading..." : "Listen Full PDF"}
-              </button>
-            )}
-
-            {/* Download button (Hidden in Compare Mode) */}
-            {!compareMode && activePaper && (
-              <button
-                onClick={handleDownload}
-                disabled={!isPdfLoaded}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
-                title={isPdfLoaded ? "" : "Wait for PDF to load..."}
-              >
-                <Download className="w-3.5 h-3.5" />
-                Download PDF
-              </button>
-            )}
-            {/* View Comparison Report button */}
+            {/* Compare Mode controls */}
             {compareMode && leftDoc && rightDoc && (
               <button
                 onClick={() => setIsComparisonModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white shadow-md shadow-fuchsia-500/20 hover:shadow-fuchsia-500/40 transition-all hover:scale-105"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] md:text-xs font-medium bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white shadow-md shadow-fuchsia-500/20 hover:shadow-fuchsia-500/40 transition-all hover:scale-105"
               >
-                View Comparison Report
+                <span className="hidden sm:inline">View Comparison Report</span>
+                <span className="sm:hidden">Report</span>
               </button>
             )}
             
@@ -311,11 +345,12 @@ export default function Home() {
                   setLeftDoc(null);
                   setRightDoc(null);
                 }}
-                className="px-2.5 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                className="px-2.5 py-1.5 rounded-md text-[11px] md:text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
               >
-                Clear Both
+                Clear
               </button>
             )}
+            
             <button
               onClick={() => {
                 setCompareMode(!compareMode);
@@ -323,7 +358,7 @@ export default function Home() {
                   setRightDoc(null);
                 }
               }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              className={`px-2.5 py-1.5 rounded-md text-xs md:text-sm font-medium transition-all ${
                 compareMode
                   ? "bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/25 hover:shadow-red-500/40"
                   : "bg-gradient-to-r from-violet-600 to-blue-500 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105"
@@ -332,6 +367,61 @@ export default function Home() {
               {compareMode ? "✕ Exit Compare" : "⇔ Compare Mode"}
             </button>
           </div>
+
+          {/* Mobile Actions Dropdown Overlay (rendered relative to header bounds) */}
+          {!compareMode && activePaper && isActionsMenuOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]" 
+                onClick={() => setIsActionsMenuOpen(false)}
+              />
+              <div className="absolute right-3 top-[52px] w-56 bg-slate-900 border border-slate-700 rounded-xl p-1.5 shadow-2xl z-50 flex flex-col gap-1 text-left animate-in fade-in slide-in-from-top-2 duration-200 md:hidden">
+                <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800 mb-1">
+                  Audio & PDF Actions
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    handleReadCopiedText();
+                  }}
+                  disabled={!isPdfLoaded}
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Clipboard className="w-3.5 h-3.5 shrink-0" />
+                  Read Selected Text
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    handleListenFullPdf();
+                  }}
+                  disabled={loadingPdfText || !isPdfLoaded}
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-xs font-medium text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {loadingPdfText ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  ) : (
+                    <Volume2 className="w-3.5 h-3.5 shrink-0" />
+                  )}
+                  {loadingPdfText ? "Loading PDF..." : "Listen Full PDF"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    handleDownload();
+                  }}
+                  disabled={!isPdfLoaded}
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-xs font-medium text-sky-400 hover:bg-sky-500/10 border border-transparent hover:border-sky-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  Download PDF
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex-1 overflow-hidden flex">
