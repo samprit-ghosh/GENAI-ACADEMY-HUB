@@ -31,6 +31,16 @@ export function chunkText(text: string, chunkSize: number = 250, overlap: number
  * Helper to resolve the RAG cache directory.
  */
 function getCacheDir(): string {
+  // On Vercel / serverless production, use the /tmp directory as the root filesystem is read-only
+  const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.NETLIFY;
+  if (isServerless) {
+    const dir = path.join("/tmp", "rag-cache");
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return dir;
+  }
+
   const cwd = process.cwd();
   let baseDir = cwd;
   // If run from the monorepo root, resolve to apps/web
