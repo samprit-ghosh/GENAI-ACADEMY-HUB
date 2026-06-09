@@ -187,17 +187,30 @@ export function DocumentViewer({
   // ─── Empty State (User Guide) ───────────────────────────────────────────────────
   if (!doc) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-card overflow-y-auto">
+      <div className="flex-1 flex flex-col items-center justify-start p-8 pt-8 sm:pt-12 bg-card overflow-y-auto">
         <div className="max-w-2xl w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-blue-500 to-purple-500 rounded-2xl shadow-xl shadow-purple-500/20 flex items-center justify-center mb-6">
-              <FileText className="w-8 h-8 text-white" />
+          <div className="text-center space-y-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-4">
+              <div className="relative group/logo flex items-center justify-center shrink-0">
+                {/* Animated yellow glow rings */}
+                <div className="absolute -inset-2 rounded-full border border-yellow-400/20 scale-115 group-hover/logo:scale-130 group-hover/logo:border-yellow-400/50 group-hover/logo:rotate-180 transition-all duration-700 ease-out pointer-events-none" />
+                <div className="absolute -inset-1 rounded-full border border-dashed border-amber-400/40 scale-105 group-hover/logo:scale-115 group-hover/logo:border-amber-400 group-hover/logo:rotate-90 transition-all duration-500 ease-out pointer-events-none" />
+                
+                {/* Logo container with yellow ring */}
+                <div className="w-16 h-16 rounded-full bg-slate-900/95 border-2 border-yellow-400/80 flex items-center justify-center overflow-hidden p-2 shadow-lg shadow-yellow-500/10 group-hover/logo:border-yellow-400 group-hover/logo:shadow-yellow-500/30 transition-all duration-300">
+                  <img 
+                    src="/logo-mark.png" 
+                    alt="GenAI Academy & Hub Logo" 
+                    className="w-full h-full object-contain group-hover/logo:scale-110 transition-transform duration-300" 
+                  />
+                </div>
+              </div>
+              <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent text-center sm:text-left">
+                Welcome to GenAI Academy & Hub
+              </h2>
             </div>
-            <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
-              Welcome to GenAI Hub
-            </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-muted-foreground text-lg max-w-xl mx-auto">
               Your AI-powered research and learning assistant. Get started with these features:
             </p>
           </div>

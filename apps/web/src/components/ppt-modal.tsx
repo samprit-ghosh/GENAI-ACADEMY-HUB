@@ -89,11 +89,22 @@ export function PptModal({ document, onClose }: PptModalProps) {
       // Clean, professional white background
       slide.background = { fill: "FFFFFF" };
       
-      // Add Logo Text in top left
-      slide.addText("AI Journal", {
-        x: 0.5, y: 0.3, w: 3, h: 0.5,
-        fontSize: 10, bold: true, color: "94A3B8"
-      });
+      // Add Logo Image and Text in top left
+      try {
+        slide.addImage({
+          path: `${window.location.origin}/logo-mark.png`,
+          x: 0.5, y: 0.25, w: 0.35, h: 0.35
+        });
+        slide.addText("GENAI ACADEMY & HUB", {
+          x: 0.95, y: 0.22, w: 4, h: 0.4,
+          fontSize: 9, bold: true, color: "94A3B8"
+        });
+      } catch (e) {
+        slide.addText("GENAI ACADEMY & HUB", {
+          x: 0.5, y: 0.3, w: 4, h: 0.5,
+          fontSize: 10, bold: true, color: "94A3B8"
+        });
+      }
 
       // Slide Title
       slide.addText(slideData.title, {
@@ -193,9 +204,22 @@ export function PptModal({ document, onClose }: PptModalProps) {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-200/20 rounded-full blur-[150px] pointer-events-none animate-pulse hidden md:block" style={{ animationDuration: '8s' }} />
 
           {/* Logo Placeholder */}
-          <div className="absolute top-4 left-4 sm:top-8 sm:left-10 flex items-center gap-2 sm:gap-3 bg-white/80 p-1.5 sm:p-0 rounded-lg backdrop-blur-sm z-20">
-            <img src="/logo.png" alt="Logo" className="w-6 h-6 sm:w-10 sm:h-10 object-contain drop-shadow-sm rounded-lg" />
-            <span className="text-[10px] sm:text-sm font-bold text-slate-400 uppercase tracking-widest hidden xs:inline-block">AI Journal</span>
+          <div className="absolute top-4 left-4 sm:top-8 sm:left-10 flex items-center gap-2 sm:gap-3.5 bg-white/90 p-2 rounded-xl border border-slate-100 shadow-sm z-20 hover:border-yellow-400/30 transition-colors group/logo">
+            <div className="relative flex items-center justify-center shrink-0">
+              {/* Animated yellow glow rings */}
+              <div className="absolute -inset-1 rounded-full border border-yellow-400/20 scale-115 group-hover/logo:scale-130 group-hover/logo:border-yellow-400/50 group-hover/logo:rotate-180 transition-all duration-700 ease-out pointer-events-none" />
+              <div className="absolute -inset-0.5 rounded-full border border-dashed border-amber-400/40 scale-105 group-hover/logo:scale-115 group-hover/logo:border-amber-400 group-hover/logo:rotate-90 transition-all duration-500 ease-out pointer-events-none" />
+              
+              {/* Logo container with yellow ring */}
+              <div className="w-8 h-8 rounded-full bg-slate-900 border border-yellow-400/80 flex items-center justify-center overflow-hidden p-1 shadow-sm shadow-yellow-500/10 group-hover/logo:border-yellow-400 group-hover/logo:shadow-yellow-500/30 transition-all duration-300">
+                <img 
+                  src="/logo-mark.png" 
+                  alt="GenAI Academy & Hub Logo" 
+                  className="w-full h-full object-contain group-hover/logo:scale-110 transition-transform duration-300" 
+                />
+              </div>
+            </div>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest hidden xs:inline-block transition-colors group-hover/logo:text-slate-800">GENAI ACADEMY & HUB</span>
           </div>
 
           <div className="w-full h-full flex flex-col justify-center my-auto pt-10 sm:pt-0 pb-10">
