@@ -77,6 +77,7 @@ export function DocumentViewer({
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [expandedTopics, setExpandedTopics] = useState<Record<number, boolean>>({});
   const [isExtractable, setIsExtractable] = useState<boolean | null>(null); // null = checking, true = yes, false = no
+  const [extractionReason, setExtractionReason] = useState<"ip_blocked" | "not_available" | null>(null);
 
   useEffect(() => {
     // Reset transcript state when document changes
@@ -87,6 +88,7 @@ export function DocumentViewer({
     onPdfLoad?.(false);
     setPdfPagesCount(null);
     setIsExtractable(null);
+    setExtractionReason(null);
     setVideoViewMode("topics");
     stopTTS();
 
@@ -112,10 +114,17 @@ export function DocumentViewer({
         try {
           const res = await fetch(`/api/video-summary?url=${encodeURIComponent(doc.course.url)}&check=true`);
           const data = await res.json();
-          setIsExtractable(data.extractable === true);
+          if (data.extractable === true) {
+            setIsExtractable(true);
+            setExtractionReason(null);
+          } else {
+            setIsExtractable(false);
+            setExtractionReason(data.reason || "not_available");
+          }
         } catch (e) {
           console.error("Error checking video extractability:", e);
           setIsExtractable(false);
+          setExtractionReason("not_available");
         }
       };
       checkExtractable();
@@ -128,7 +137,13 @@ export function DocumentViewer({
     try {
       const res = await fetch(`/api/video-summary?url=${encodeURIComponent(url)}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to fetch transcript");
+      if (!res.ok) {
+        let errorMsg = data.error || "Failed to fetch transcript";
+        if (data.reason === "ip_blocked") {
+          errorMsg = `${errorMsg}. YouTube has blocked requests from Vercel's IP address. Please configure a PROXY_URL in your Vercel Environment Variables.`;
+        }
+        throw new Error(errorMsg);
+      }
       setTranscriptData(data.topics);
       // Expand the first topic by default
       if (data.topics && data.topics.length > 0) {
@@ -653,6 +668,15 @@ export function DocumentViewer({
                           Extract Topics
                         </button>
                       )
+                    ) : extractionReason === "ip_blocked" ? (
+                      <div className="flex flex-col items-end gap-1 select-none">
+                        <span className="text-xs text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 font-medium flex items-center gap-1.5 shadow-sm">
+                          <span>⚠️</span> Blocked by YouTube (Production IP)
+                        </span>
+                        <span className="text-[10px] text-muted-foreground text-right max-w-[280px]">
+                          Configure a <code>PROXY_URL</code> in Vercel to bypass.
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
                         Transcript extraction not available
