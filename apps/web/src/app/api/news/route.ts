@@ -1,29 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
-import fs from "fs";
-import path from "path";
 
 function getApiKey(): string | undefined {
-  try {
-    const envPaths = [
-      path.join(process.cwd(), ".env.local"),
-      path.join(process.cwd(), "apps", "web", ".env.local"),
-      path.join(process.cwd(), "..", ".env.local")
-    ];
-    
-    for (const p of envPaths) {
-      if (fs.existsSync(p)) {
-        const content = fs.readFileSync(p, "utf8");
-        const match = content.match(/GEMINI_API_KEY\s*=\s*(.*)/);
-        if (match && match[1]) {
-          const key = match[1].trim().replace(/['"]/g, "");
-          if (key) return key;
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Could not read API key dynamically:", err);
-  }
   return process.env.GEMINI_API_KEY;
 }
 

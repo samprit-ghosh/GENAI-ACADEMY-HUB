@@ -8,11 +8,12 @@ import {
   BookOpen,
   GraduationCap,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect } from "react";
 import type { ResearchPaper, Course } from "@/lib/types";
-import type { SelectedDocument } from "@/app/page";
+import type { SelectedDocument } from "@/app/page-client";
 
 type RadarSidebarProps = {
   filter: string;
@@ -28,6 +29,37 @@ type RadarSidebarProps = {
   hasMorePapers?: boolean;
   isLoadingMorePapers?: boolean;
 };
+
+interface LogoLoaderProps {
+  message?: string;
+  small?: boolean;
+}
+
+const LogoLoader = ({ message = "Loading...", small = false }: LogoLoaderProps) => (
+  <div className={`flex flex-col items-center justify-center w-full animate-in fade-in duration-300 ${small ? "py-4" : "py-12"}`}>
+    <div className="relative flex items-center justify-center">
+      {/* Outer glowing rings */}
+      <div className={`absolute inset-0 rounded-full border border-yellow-400/20 animate-[spin_8s_linear_infinite] pointer-events-none ${small ? "scale-125" : "scale-135"}`} />
+      <div className={`absolute inset-0 rounded-full border border-dashed border-indigo-400/40 animate-[spin_4s_linear_infinite_reverse] pointer-events-none ${small ? "scale-110" : "scale-115"}`} />
+      <div className="absolute inset-0 rounded-full bg-indigo-500/10 blur-xl scale-75 animate-pulse" />
+      
+      {/* Logo mark with yellow ring */}
+      <div className={`rounded-full bg-slate-900 border-2 border-yellow-400/80 flex items-center justify-center overflow-hidden shadow-md shadow-yellow-500/10 animate-bounce ${small ? "w-8 h-8 p-1" : "w-12 h-12 p-1.5"}`}>
+        <img 
+          src="/logo-mark.png" 
+          alt="Logo" 
+          className="w-full h-full object-contain" 
+        />
+      </div>
+    </div>
+    {message && (
+      <p className={`font-bold text-slate-400 tracking-widest uppercase animate-pulse flex items-center justify-center gap-1.5 ${small ? "mt-3 text-[9px]" : "mt-5 text-[10px] sm:text-xs"}`}>
+        <Sparkles className="w-3 h-3 text-indigo-400 animate-spin" />
+        {message}
+      </p>
+    )}
+  </div>
+);
 
 export function RadarSidebar({
   filter,
@@ -166,14 +198,9 @@ export function RadarSidebar({
       {/* Content */}
       <div className="flex-1 overflow-y-auto" ref={parentRef}>
         {loading && papers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
-            <p className="text-sm text-muted-foreground">
-              {activeTab === "papers"
-                ? "Fetching latest research papers..."
-                : "Loading courses..."}
-            </p>
-          </div>
+          <LogoLoader 
+            message={activeTab === "papers" ? "Fetching latest research papers..." : "Loading courses..."} 
+          />
         ) : activeTab === "papers" ? (
           /* ─── PAPERS TAB ─────────────────────────────────────────── */
           <div 
@@ -197,10 +224,10 @@ export function RadarSidebar({
                       key="loader"
                       ref={rowVirtualizer.measureElement}
                       data-index={virtualRow.index}
-                      className="absolute top-0 left-0 w-full p-4 flex justify-center"
+                      className="absolute top-0 left-0 w-full p-2 flex justify-center"
                       style={{ transform: `translateY(${virtualRow.start}px)` }}
                     >
-                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                      <LogoLoader message="" small />
                     </div>
                   );
                 }

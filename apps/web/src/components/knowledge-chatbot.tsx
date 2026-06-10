@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X, Send, Loader2, Bot, User, Trash2, Copy, Check } from "lucide-react";
+import { MessageSquare, X, Send, Loader2, Bot, User, Trash2, Copy, Check, Volume2, Square } from "lucide-react";
 import type { ResearchPaper } from "@/lib/types";
+import { useAudio } from "./audio-provider";
 
 export function KnowledgeChatbot({ activePaper, papers = [] }: { activePaper: ResearchPaper | null, papers?: ResearchPaper[] }) {
+  const { playTTS, stopTTS, isPlaying, currentTrack, trackType } = useAudio();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: "user" | "bot"; content: string }[]>([]);
   const [input, setInput] = useState("");
@@ -73,8 +75,18 @@ export function KnowledgeChatbot({ activePaper, papers = [] }: { activePaper: Re
   };
   const formatMessage = (text: string) => {
     return text.split("\n").map((line, i) => {
+      let processedLine = line;
+      let aiPrefix = null;
+      if (i === 0 && processedLine.startsWith("Ai answer: ")) {
+        aiPrefix = <span key="ai-prefix" className="font-bold text-emerald-500">AI answer: </span>;
+        processedLine = processedLine.substring("Ai answer: ".length);
+      }
+
+      // Convert raw HTML strong/b tags to markdown ** format to catch AI inconsistencies
+      processedLine = processedLine.replace(/<\/?strong>/gi, "**").replace(/<\/?b>/gi, "**");
+
       // Bold text formatting
-      const parts = line.split(/(\*\*.*?\*\*)/g);
+      const parts = processedLine.split(/(\*\*.*?\*\*)/g);
       const formattedLine = parts.map((part, j) => {
         if (part.startsWith("**") && part.endsWith("**")) {
           return <strong key={j} className="font-semibold text-indigo-300">{part.slice(2, -2)}</strong>;
@@ -83,22 +95,23 @@ export function KnowledgeChatbot({ activePaper, papers = [] }: { activePaper: Re
       });
 
       // Handle lists (bullets or numbers)
-      if (line.trim().match(/^(\d+\.|-|\*)\s/)) {
+      if (processedLine.trim().match(/^(\d+\.|-|\*)\s/)) {
         return (
           <div key={i} className="flex gap-2 my-1.5 ml-2">
              <span className="text-emerald-400 font-bold mt-0.5">→</span>
-             <div>{formattedLine.map((p, k) => <span key={k}>{typeof p === 'string' ? p.replace(/^(\d+\.|-|\*)\s/, '') : p}</span>)}</div>
+             <div>{aiPrefix}{formattedLine.map((p, k) => <span key={k}>{typeof p === 'string' ? p.replace(/^(\d+\.|-|\*)\s/, '') : p}</span>)}</div>
           </div>
         );
       }
 
       // Headers (### text)
-      if (line.trim().startsWith("#")) {
-        return <div key={i} className="text-[15px] font-bold text-indigo-200 mt-4 mb-2 border-b border-indigo-500/20 pb-1">{line.replace(/^#+\s/, "")}</div>;
+      if (processedLine.trim().startsWith("#")) {
+        return <div key={i} className="text-[15px] font-bold text-indigo-200 mt-4 mb-2 border-b border-indigo-500/20 pb-1">{aiPrefix}{processedLine.replace(/^#+\s/, "")}</div>;
       }
 
       return (
-        <div key={i} className={line.trim() === "" ? "h-2" : "my-1 leading-relaxed"}>
+        <div key={i} className={processedLine.trim() === "" && !aiPrefix ? "h-2" : "my-1 leading-relaxed"}>
+          {aiPrefix}
           {formattedLine}
         </div>
       );
@@ -169,28 +182,51 @@ export function KnowledgeChatbot({ activePaper, papers = [] }: { activePaper: Re
             ) : (
               messages.map((msg, i) => (
                 <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
-                  <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center ${msg.role === "user" ? "bg-slate-700 text-slate-300" : "bg-indigo-500/20 text-indigo-400"}`}>
-                    {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center overflow-hidden ${msg.role === "user" ? "bg-slate-700 text-slate-300" : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-inner"}`}>
+                    {msg.role === "user" ? <User className="w-4 h-4" /> : <img src="/logo-mark.png" alt="Bot" className="w-full h-full object-contain p-1 opacity-90" />}
                   </div>
                   <div className={`p-3 rounded-2xl text-sm leading-relaxed max-w-[80%] ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none"}`}>
                     {formatMessage(msg.content)}
                     {msg.role === "bot" && (
-                      <button 
-                        onClick={() => handleCopy(msg.content, i)}
-                        className="mt-2 text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        {copiedIndex === i ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-400" /> 
-                            <span className="text-emerald-400">Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" /> Copy
-                          </>
-                        )}
-                      </button>
+                      <div className="mt-2 flex items-center gap-4">
+                        <button 
+                          onClick={() => handleCopy(msg.content, i)}
+                          className="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
+                          title="Copy to clipboard"
+                        >
+                          {copiedIndex === i ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" /> 
+                              <span className="text-emerald-400">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" /> Copy
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (isPlaying && trackType === "tts" && currentTrack === msg.content) {
+                              stopTTS();
+                            } else {
+                              playTTS(msg.content, "AI Response");
+                            }
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
+                          title="Listen to response"
+                        >
+                          {isPlaying && trackType === "tts" && currentTrack === msg.content ? (
+                            <>
+                              <Square className="w-3 h-3 text-rose-400" /> <span className="text-rose-400">Stop</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3 h-3 text-indigo-400" /> <span className="text-indigo-200">Listen</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -198,8 +234,8 @@ export function KnowledgeChatbot({ activePaper, papers = [] }: { activePaper: Re
             )}
             {isLoading && (
               <div className="flex gap-3 flex-row">
-                <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-indigo-500/20 text-indigo-400">
-                  <Bot className="w-4 h-4" />
+                <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center overflow-hidden bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-inner">
+                  <img src="/logo-mark.png" alt="Bot" className="w-full h-full object-contain p-1 opacity-90" />
                 </div>
                 <div className="p-3 rounded-2xl rounded-tl-none bg-slate-800 text-slate-400 border border-slate-700 text-sm flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />

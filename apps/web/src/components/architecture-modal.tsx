@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Network, Download } from "lucide-react";
 import mermaid from "mermaid";
-import type { SelectedDocument } from "@/app/page";
+import type { SelectedDocument } from "@/app/page-client";
 
 type ArchitectureModalProps = {
   document: SelectedDocument;

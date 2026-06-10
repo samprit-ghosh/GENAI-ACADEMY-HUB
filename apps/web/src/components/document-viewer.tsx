@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, ExternalLink, Download, ArrowLeftRight, Maximize, Minimize, ListTree, Loader2, ChevronDown, ChevronRight, Volume2, Presentation, BookOpen, Network } from "lucide-react";
 import { useAudio } from "@/components/audio-provider";
 import { PdfLoader } from "@/components/pdf-loader";
-import type { SelectedDocument } from "@/app/page";
+import type { SelectedDocument } from "@/app/page-client";
 
 type DocumentViewerProps = {
   document: SelectedDocument;
@@ -29,11 +29,14 @@ export function DocumentViewer({
   const { playTrack, playTTS } = useAudio();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isNarrowMobile, setIsNarrowMobile] = useState(false);
+  const [pdfPagesCount, setPdfPagesCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
+      setIsNarrowMobile(window.innerWidth < 450);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
@@ -78,6 +81,24 @@ export function DocumentViewer({
     setExpandedTopics({});
     setPdfLoaded(false);
     onPdfLoad?.(false);
+    setPdfPagesCount(null);
+
+    if (doc && doc.kind === "paper" && doc.paper?.id) {
+      const fetchPageCount = async () => {
+        try {
+          const res = await fetch(`/api/pdf?id=${encodeURIComponent(doc.paper.id)}`, {
+            method: "HEAD",
+          });
+          const pages = res.headers.get("X-PDF-Pages");
+          if (pages) {
+            setPdfPagesCount(parseInt(pages, 10));
+          }
+        } catch (e) {
+          console.error("Error fetching PDF pages count:", e);
+        }
+      };
+      fetchPageCount();
+    }
   }, [doc]);
 
   const fetchTranscript = async (url: string) => {
@@ -484,9 +505,14 @@ export function DocumentViewer({
               {isLeft ? "LEFT" : "RIGHT"}
             </span>
           )}
-          <span className="text-xs font-medium truncate max-w-[200px]">
+          <span className="text-xs font-semibold truncate max-w-[140px] sm:max-w-[350px]">
             {paper.title}
           </span>
+          {pdfPagesCount !== null && isNarrowMobile && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0 select-none">
+              {pdfPagesCount} {pdfPagesCount === 1 ? "page" : "pages"}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {!compareMode && onOpenPpt && (
@@ -541,7 +567,7 @@ export function DocumentViewer({
               </div>
             )}
             <iframe
-              src={`/api/pdf?id=${encodeURIComponent(paper.id)}${isMobile ? "#scrollbar=0&navpanes=0" : ""}`}
+              src={`/api/pdf?id=${encodeURIComponent(paper.id)}#view=FitH${isMobile ? "&scrollbar=0&navpanes=0" : ""}`}
               className="w-full h-full border-0"
               title={paper.title}
               onLoad={() => {

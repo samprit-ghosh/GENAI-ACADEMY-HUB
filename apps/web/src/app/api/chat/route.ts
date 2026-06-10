@@ -2,40 +2,9 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { extractAnswer, extractSummary, extractOneLiner } from "@/lib/nlp";
 import { getOrIngestPaper, searchRAG } from "@/lib/rag";
-import fs from "fs";
-import path from "path";
 
 function getApiKey(): string | undefined {
-  // 1. Try loading from .env.local dynamically first to ensure we get the latest key
-  try {
-    const envPaths = [
-      path.join(process.cwd(), ".env.local"),
-      path.join(process.cwd(), "apps", "web", ".env.local"),
-      path.join(process.cwd(), "..", ".env.local")
-    ];
-    
-    for (const p of envPaths) {
-      if (fs.existsSync(p)) {
-        const content = fs.readFileSync(p, "utf8");
-        const match = content.match(/GEMINI_API_KEY\s*=\s*(.*)/);
-        if (match && match[1]) {
-          const key = match[1].trim().replace(/['"]/g, "");
-          if (key) {
-            return key;
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Could not read API key dynamically from file system:", err);
-  }
-
-  // 2. Fall back to process.env
-  if (process.env.GEMINI_API_KEY) {
-    return process.env.GEMINI_API_KEY;
-  }
-  
-  return undefined;
+  return process.env.GEMINI_API_KEY;
 }
 
 async function stripHtml(html: string): Promise<string> {
@@ -146,20 +115,17 @@ export async function POST(request: Request) {
             });
             
             if (response && response.text) {
-               responseText = response.text;
+               responseText = `Ai answer: ${response.text}`;
             } else {
                // Fallback to Algorithmic QA if Gemini returns empty
                const fallbackText = allSummaries || "";
-               const answer = extractAnswer(query, fallbackText, 2);
-               responseText = `Gemini is currently busy (Empty response).\n\nAlgorithmic Fallback: ${answer}`;
+               responseText = extractAnswer(query, fallbackText, 2);
             }
           }
         } catch (e: any) {
           console.warn(`[Info] Gemini API unavailable (${e?.status || 'Error'}), gracefully falling back to algorithmic search. Error details:`, e?.message || e);
           const fallbackText = allSummaries || "";
-          const answer = extractAnswer(query, fallbackText, 2);
-          const keySnippet = apiKey ? `${apiKey.substring(0, 6)}... (length: ${apiKey.length})` : "None";
-          responseText = `Gemini is currently busy.\nError Details: ${e?.message || e}\nAPI Key Status: ${keySnippet}\n\nAlgorithmic Fallback found this:\n"...${answer}..."`;
+          responseText = extractAnswer(query, fallbackText, 2);
         }
       } else {
         // Fallback to algorithmic NLP
@@ -169,9 +135,9 @@ export async function POST(request: Request) {
         const allEnvKeys = Object.keys(process.env).filter(k => k.toLowerCase().includes("gemini"));
         const debugMsg = `[No Gemini API key detected. Available GEMINI env vars: ${allEnvKeys.join(", ") || "none"}]`;
         if (answer.startsWith("I could not") || answer.startsWith("I couldn't")) {
-           responseText = `${answer}\n\n${debugMsg}`;
+           responseText = answer;
         } else {
-           responseText = `Based on the text, I found this:\n\n"...${answer}..."\n\n${debugMsg}`;
+           responseText = answer;
         }
       }
     }

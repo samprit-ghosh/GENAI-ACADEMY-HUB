@@ -15,11 +15,41 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "About | GenAI Academy & Hub",
-  description: "Learn more about the GenAI Academy & Hub, an AI-powered workspace designed for research discovery, paper reviews, audio insights, and visual summaries.",
+  title: "About Our AI Research Mission - GenAI Academy & Hub",
+  description: "Learn about the mission behind the GenAI Academy & Hub. Discover our AI-powered workspace features: layout-aware PDF extractions, RAG chatbot assistance, comparative synchronized analysis, and automated presentation generation.",
+  keywords: [
+    "About GenAI Academy",
+    "AI research workspace mission",
+    "academic PDF tools project",
+    "RAG engineering",
+    "democratizing AI research"
+  ],
+  alternates: {
+    canonical: "https://genaia-academy.com/about",
+  },
+  openGraph: {
+    title: "About Our AI Research Mission - GenAI Academy & Hub",
+    description: "Learn about the mission behind the GenAI Academy & Hub. Discover our AI-powered workspace features: layout-aware PDF extractions, RAG chatbot assistance, comparative synchronized analysis, and automated presentation generation.",
+    url: "https://genaia-academy.com/about",
+    type: "website",
+    siteName: "GenAI Academy & Hub",
+  },
 };
 
 export default function AboutPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "name": "About GenAI Academy & Hub",
+    "url": "https://genaia-academy.com/about",
+    "description": "Learn about the mission behind GenAI Academy & Hub, which focuses on democratizing ML and deep learning research with layout-aware parsers, voice audio guides, and RAG chatbots.",
+    "mainEntity": {
+      "@type": "Project",
+      "name": "GenAI Academy & Hub",
+      "description": "An AI-powered academic workspace designed for research discovery, paper reviews, audio insights, and visual summaries."
+    }
+  };
+
   const features = [
     {
       icon: <BookOpen className="w-5 h-5 text-indigo-400" />,
@@ -53,10 +83,12 @@ export default function AboutPage() {
     },
   ];
 
-
-
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500/30 font-sans relative overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Dynamic Background Glows */}
       <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[120px] opacity-70 pointer-events-none -z-10" />
       <div className="absolute top-1/3 right-1/4 w-[350px] h-[350px] bg-violet-600/5 rounded-full blur-[120px] opacity-60 pointer-events-none -z-10" />

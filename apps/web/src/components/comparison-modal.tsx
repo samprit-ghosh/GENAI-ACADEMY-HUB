@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Volume2, Download, FileText, Beaker, Users, BarChart3, Pause } from "lucide-react";
-import type { SelectedDocument } from "@/app/page";
+import type { SelectedDocument } from "@/app/page-client";
 import { useAudio } from "@/components/audio-provider";
 
 type ComparisonModalProps = {
