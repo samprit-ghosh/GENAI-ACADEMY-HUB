@@ -1,40 +1,116 @@
 {
-  "nlp": [
+  "mult": [
     {
-      "id": "dyn-yt-nlp-1",
-      "title": "Natural Language Processing (NLP) Tutorial For Beginners",
-      "creator": "freeCodeCamp.org",
+      "id": "dyn-yt-mult-1",
+      "title": "AI Complete OneShot Course for Beginners | Learn AI & ML Fundamentals from Scratch",
+      "creator": "Apna College",
       "platform": "YouTube",
       "type": "free",
-      "url": "https://www.youtube.com/results?search_query=freecodecamp+nlp+tutorial",
-      "description": "Dive into the foundations of Natural Language Processing with this comprehensive beginner's guide. Learn essential concepts like text preprocessing, tokenization, stemming, lemmatization, and basic NLP models to kickstart your journey."
+      "url": "https://www.youtube.com/watch?v=D1eL1EnxXXQ",
+      "description": "Access a free, high-quality course video covering Mult on YouTube."
     },
     {
-      "id": "dyn-yt-nlp-2",
-      "title": "Hugging Face Transformers Course",
-      "creator": "Hugging Face",
+      "id": "dyn-yt-mult-2",
+      "title": "500 AI/ML Projects with Source Code 😱🔥",
+      "creator": "Coding Master",
       "platform": "YouTube",
       "type": "free",
-      "url": "https://www.youtube.com/results?search_query=huggingface+transformers+course",
-      "description": "Master the state-of-the-art Transformer models for various NLP tasks directly from the experts at Hugging Face. This playlist provides a practical, hands-on approach to using their library for text classification, question answering, and more."
+      "url": "https://www.youtube.com/watch?v=pMUH1n_i7Ho",
+      "description": "Find code walkthroughs, hands-on demonstrations, and practical project builds for Mult on YouTube."
     },
     {
-      "id": "dyn-coursera-nlp-1",
-      "title": "Natural Language Processing Specialization",
-      "creator": "DeepLearning.AI",
+      "id": "dyn-coursera-mult-1",
+      "title": "Coursera: Mult Specialization Pathways",
+      "creator": "Partner Universities & Companies",
       "platform": "Coursera",
       "type": "paid",
-      "url": "https://www.coursera.org/specializations/natural-language-processing",
-      "description": "Unlock the power of human language with this world-class specialization from DeepLearning.AI. Progress through traditional NLP methods to advanced deep learning architectures for cutting-edge text analysis and generation."
+      "url": "https://www.coursera.org/search?query=mult",
+      "description": "Browse premium structured courses, specializations, and professional certificates for Mult from top-tier universities on Coursera."
     },
     {
-      "id": "dyn-udemy-nlp-1",
-      "title": "NLP - Natural Language Processing with Python",
-      "creator": "Jose Portilla, Pierian Training",
+      "id": "dyn-udemy-mult-1",
+      "title": "Udemy: Complete Mult Bootcamps",
+      "creator": "Industry Professionals & Engineers",
       "platform": "Udemy",
       "type": "paid",
-      "url": "https://www.udemy.com/courses/search/?q=nlp+natural+language+processing+python",
-      "description": "Gain practical expertise in NLP by building real-world projects using Python and popular libraries like NLTK and SpaCy. This course covers everything from text classification and sentiment analysis to topic modeling and chatbots."
+      "url": "https://www.udemy.com/courses/search/?q=mult",
+      "description": "Learn Mult from scratch through practical coding bootcamps and build real-world projects on Udemy."
+    }
+  ],
+  "muly": [
+    {
+      "id": "dyn-yt-muly-1",
+      "title": "Ai & ML Roadmap | FREE 😲",
+      "creator": "Neeraj Walia",
+      "platform": "YouTube",
+      "type": "free",
+      "url": "https://www.youtube.com/watch?v=tiplN2Qc_ws",
+      "description": "Access a free, high-quality course video covering Muly on YouTube."
+    },
+    {
+      "id": "dyn-yt-muly-2",
+      "title": "Complete AI & ML Roadmap 2025 For Beginners #ai #softwareengineer #btech",
+      "creator": "Saumya Singh",
+      "platform": "YouTube",
+      "type": "free",
+      "url": "https://www.youtube.com/watch?v=_2SEAqI7JTU",
+      "description": "Find code walkthroughs, hands-on demonstrations, and practical project builds for Muly on YouTube."
+    },
+    {
+      "id": "dyn-coursera-muly-1",
+      "title": "Coursera: Muly Specialization Pathways",
+      "creator": "Partner Universities & Companies",
+      "platform": "Coursera",
+      "type": "paid",
+      "url": "https://www.coursera.org/search?query=muly",
+      "description": "Browse premium structured courses, specializations, and professional certificates for Muly from top-tier universities on Coursera."
+    },
+    {
+      "id": "dyn-udemy-muly-1",
+      "title": "Udemy: Complete Muly Bootcamps",
+      "creator": "Industry Professionals & Engineers",
+      "platform": "Udemy",
+      "type": "paid",
+      "url": "https://www.udemy.com/courses/search/?q=muly",
+      "description": "Learn Muly from scratch through practical coding bootcamps and build real-world projects on Udemy."
+    }
+  ],
+  "multi": [
+    {
+      "id": "dyn-yt-multi-1",
+      "title": "AI Complete OneShot Course for Beginners | Learn AI & ML Fundamentals from Scratch",
+      "creator": "Apna College",
+      "platform": "YouTube",
+      "type": "free",
+      "url": "https://www.youtube.com/watch?v=D1eL1EnxXXQ",
+      "description": "Access a free, high-quality course video covering Multi on YouTube."
+    },
+    {
+      "id": "dyn-yt-multi-2",
+      "title": "ADVANCED Python AI Multi-Agent Tutorial (RAG, Streamlit, Langflow & More!)",
+      "creator": "Tech With Tim",
+      "platform": "YouTube",
+      "type": "free",
+      "url": "https://www.youtube.com/watch?v=msLovKSj8Q0",
+      "description": "Find code walkthroughs, hands-on demonstrations, and practical project builds for Multi on YouTube."
+    },
+    {
+      "id": "dyn-coursera-multi-1",
+      "title": "Coursera: Multi Specialization Pathways",
+      "creator": "Partner Universities & Companies",
+      "platform": "Coursera",
+      "type": "paid",
+      "url": "https://www.coursera.org/search?query=multi",
+      "description": "Browse premium structured courses, specializations, and professional certificates for Multi from top-tier universities on Coursera."
+    },
+    {
+      "id": "dyn-udemy-multi-1",
+      "title": "Udemy: Complete Multi Bootcamps",
+      "creator": "Industry Professionals & Engineers",
+      "platform": "Udemy",
+      "type": "paid",
+      "url": "https://www.udemy.com/courses/search/?q=multi",
+      "description": "Learn Multi from scratch through practical coding bootcamps and build real-world projects on Udemy."
     }
   ]
 }

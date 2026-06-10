@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { FileText, ExternalLink, Download, ArrowLeftRight, Maximize, Minimize, ListTree, Loader2, ChevronDown, ChevronRight, Volume2, Presentation, BookOpen, Network } from "lucide-react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { FileText, ExternalLink, Download, ArrowLeftRight, Maximize, Minimize, ListTree, Loader2, ChevronDown, ChevronRight, Volume2, Presentation, BookOpen, Network, Sparkles } from "lucide-react";
 import { useAudio } from "@/components/audio-provider";
 import { PdfLoader } from "@/components/pdf-loader";
 import type { SelectedDocument } from "@/app/page-client";
+import { getYoutubeVideoId, getYoutubePlaylistId } from "@/lib/youtube";
+import { getSentences, tokenize, removeStopWords } from "@/lib/nlp";
 
 type DocumentViewerProps = {
   document: SelectedDocument;
@@ -26,11 +28,12 @@ export function DocumentViewer({
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isSyncingRef = useRef(false);
-  const { playTrack, playTTS } = useAudio();
+  const { playTrack, playTTS, stopTTS, isPlaying, currentTrack } = useAudio();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isNarrowMobile, setIsNarrowMobile] = useState(false);
   const [pdfPagesCount, setPdfPagesCount] = useState<number | null>(null);
+  const [videoViewMode, setVideoViewMode] = useState<"topics" | "summary">("topics");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -73,6 +76,7 @@ export function DocumentViewer({
   const [loadingTranscript, setLoadingTranscript] = useState(false);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
   const [expandedTopics, setExpandedTopics] = useState<Record<number, boolean>>({});
+  const [isExtractable, setIsExtractable] = useState<boolean | null>(null); // null = checking, true = yes, false = no
 
   useEffect(() => {
     // Reset transcript state when document changes
@@ -82,6 +86,9 @@ export function DocumentViewer({
     setPdfLoaded(false);
     onPdfLoad?.(false);
     setPdfPagesCount(null);
+    setIsExtractable(null);
+    setVideoViewMode("topics");
+    stopTTS();
 
     if (doc && doc.kind === "paper" && doc.paper?.id) {
       const fetchPageCount = async () => {
@@ -98,6 +105,20 @@ export function DocumentViewer({
         }
       };
       fetchPageCount();
+    }
+
+    if (doc && doc.kind === "course" && doc.course && doc.course.platform === "YouTube") {
+      const checkExtractable = async () => {
+        try {
+          const res = await fetch(`/api/video-summary?url=${encodeURIComponent(doc.course.url)}&check=true`);
+          const data = await res.json();
+          setIsExtractable(data.extractable === true);
+        } catch (e) {
+          console.error("Error checking video extractability:", e);
+          setIsExtractable(false);
+        }
+      };
+      checkExtractable();
     }
   }, [doc]);
 
@@ -118,6 +139,108 @@ export function DocumentViewer({
     } finally {
       setLoadingTranscript(false);
     }
+  };
+
+  const handleDownloadTranscriptPdf = () => {
+    if (!transcriptData || !doc || doc.kind !== "course") return;
+
+    const c = doc.course;
+    import("jspdf").then(({ jsPDF }) => {
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+
+      // Style setups
+      pdf.setFont("helvetica", "bold");
+
+      // Title
+      pdf.setFontSize(16);
+      pdf.setTextColor(30, 27, 75); // Dark Indigo
+
+      const title = `Extracted Video Topics: ${c.title}`;
+      const titleLines = pdf.splitTextToSize(title, 180);
+
+      let y = 20;
+      pdf.text(titleLines, 15, y);
+      y += titleLines.length * 7;
+
+      // Meta headers
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9.5);
+      pdf.setTextColor(100, 116, 139); // Slate
+
+      pdf.text(`Creator: ${c.creator} | Platform: ${c.platform}`, 15, y);
+      y += 5.5;
+      pdf.text(`Video Link: ${c.url}`, 15, y);
+      y += 8;
+
+      // Decorative line
+      pdf.setDrawColor(99, 102, 241); // Indigo line
+      pdf.setLineWidth(0.5);
+      pdf.line(15, y, 195, y);
+      y += 10;
+
+      // Segments
+      pdf.setFontSize(10);
+
+      for (const topic of transcriptData) {
+        // Section Header (Segment Title)
+        const segmentHeader = `${topic.title.split(' (')[0]} [Timestamp: ${topic.title.split(' (')[1]?.replace(')', '') || '0:00'}]`;
+        
+        // Check height for segment header
+        if (y + 15 > pageHeight - 15) {
+          pdf.addPage();
+          y = 20;
+        }
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(99, 102, 241); // Indigo for segment headers
+        pdf.text(segmentHeader, 15, y);
+        y += 6;
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(51, 65, 85); // Slate body color
+
+        // Subtopics/Lines
+        for (const line of topic.subtopics) {
+          const bulletLine = `• ${line}`;
+          const lines = pdf.splitTextToSize(bulletLine, 175);
+          const blockHeight = lines.length * 5.5;
+
+          if (y + blockHeight > pageHeight - 15) {
+            pdf.addPage();
+            y = 20;
+          }
+
+          pdf.text(lines, 15, y);
+          y += blockHeight + 1.5;
+        }
+
+        y += 4.5; // Gap between segments
+      }
+
+      // Footers on all pages
+      const pageCount = (pdf as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(156, 163, 175);
+        pdf.text("GenAI Academy & Hub • AI Research Synthesis Engine", 15, pageHeight - 8);
+        pdf.text(`Page ${i} of ${pageCount}`, pageWidth - 30, pageHeight - 8);
+      }
+
+      // Save PDF
+      const safeTitle = c.title
+        .replace(/[^a-z0-9]/gi, "_")
+        .toLowerCase()
+        .substring(0, 45);
+      pdf.save(`segments_${safeTitle}.pdf`);
+    });
   };
 
   const toggleTopic = (index: number) => {
@@ -204,6 +327,64 @@ export function DocumentViewer({
       document.exitFullscreen();
     }
   };
+  const summarySentences = useMemo(() => {
+    if (!transcriptData) return [];
+    
+    // Combine all subtopics text
+    const rawText = transcriptData.map(t => t.subtopics.join(" ")).join(" ");
+    let sentences = getSentences(rawText);
+    
+    // Fallback to subtitle phrases if we didn't find enough sentences with standard punctuation
+    if (sentences.length < 5) {
+      sentences = transcriptData.flatMap(t => t.subtopics)
+        .map(s => s.trim())
+        .filter(s => s.length > 20 && s.split(/\s+/).length >= 5);
+    }
+    
+    if (sentences.length <= 5) {
+      return sentences.map(s => /[.!?]$/.test(s) ? s : s + ".");
+    }
+    
+    // Extractive summary scoring
+    const allTokens = removeStopWords(tokenize(rawText));
+    const wordFreq: Record<string, number> = {};
+    for (const word of allTokens) {
+      wordFreq[word] = (wordFreq[word] || 0) + 1;
+    }
+    
+    const scores = sentences.map(s => {
+      const tokens = removeStopWords(tokenize(s));
+      let score = 0;
+      for (const token of tokens) {
+        score += wordFreq[token] || 0;
+      }
+      return score / (tokens.length || 1);
+    });
+    
+    const rankedIndices = sentences.map((_, i) => i).sort((a, b) => scores[b] - scores[a]);
+    const topIndices = rankedIndices.slice(0, 5).sort((a, b) => a - b);
+    
+    return topIndices.map(i => {
+      let s = sentences[i];
+      if (s && !/[.!?]$/.test(s)) {
+        s += ".";
+      }
+      return s;
+    });
+  }, [transcriptData]);
+
+  const summaryText = useMemo(() => summarySentences.join(" "), [summarySentences]);
+  const isSummaryTtsPlaying = isPlaying && currentTrack === summaryText;
+
+  const handleToggleSummaryTts = () => {
+    if (!doc || doc.kind !== "course") return;
+    if (isSummaryTtsPlaying) {
+      stopTTS();
+    } else {
+      playTTS(summaryText, `Summary: ${doc.course.title}`);
+    }
+  };
+
   if (!doc) {
     return (
       <div 
@@ -361,40 +542,62 @@ export function DocumentViewer({
               </div>
             </div>
 
-            {/* Embed YouTube if it's a YouTube course */}
-            {c.platform === "YouTube" && c.url.includes("youtu") && (
-              <>
-                <div className="flex items-start gap-2 p-3 mb-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-600/90 dark:text-yellow-400/90 text-xs">
-                  <div className="shrink-0 mt-0.5">ℹ️</div>
-                  <p>
-                    <strong>Note:</strong> If the video below says "unavailable", it means the creator (like Stanford) has disabled viewing on other websites. Please click the <strong>"Open on YouTube"</strong> button in the top right to watch it!
+            {/* Embed YouTube if it's a YouTube course video or playlist */}
+            {c.platform === "YouTube" && (() => {
+              const videoId = getYoutubeVideoId(c.url);
+              const playlistId = getYoutubePlaylistId(c.url);
+              let embed = "";
+              if (videoId) {
+                embed = `https://www.youtube.com/embed/${videoId}${playlistId ? `?list=${playlistId}` : ""}`;
+              } else if (playlistId) {
+                embed = `https://www.youtube.com/embed/videoseries?list=${playlistId}`;
+              }
+
+              if (!embed) return null;
+
+              return (
+                <>
+                  <div className="flex items-start gap-2 p-3 mb-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-600/90 dark:text-yellow-400/90 text-xs">
+                    <div className="shrink-0 mt-0.5">ℹ️</div>
+                    <p>
+                      <strong>Note:</strong> If the video below says "unavailable", it means the creator (like Stanford) has disabled viewing on other websites. Please click the <strong>"Open on YouTube"</strong> button in the top right to watch it!
+                    </p>
+                  </div>
+                  <div className="aspect-video rounded-xl overflow-hidden border border-border/50 bg-black">
+                    <iframe
+                      src={embed}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title={c.title}
+                    />
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Curated Search Directory Placeholder */}
+            {c.platform === "YouTube" && !getYoutubeVideoId(c.url) && !getYoutubePlaylistId(c.url) && (
+              <div className="p-8 rounded-2xl border border-dashed border-primary/20 bg-muted/5 flex flex-col items-center text-center gap-4 animate-in fade-in duration-500">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <ListTree className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-foreground mb-1 text-base">Curated Search Directory</h4>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    This recommendation is a search directory query designed to help you discover the latest tutorials and builds. Please open it directly on YouTube to browse and watch the videos.
                   </p>
                 </div>
-                <div className="aspect-video rounded-xl overflow-hidden border border-border/50 bg-black">
-                  <iframe
-                    src={(() => {
-                      let embed = "";
-                      const hasList = c.url.includes("list=");
-                      const listId = hasList ? c.url.split("list=")[1].split("&")[0] : null;
-                      
-                      if (c.url.includes("watch?v=")) {
-                        const videoId = c.url.split("v=")[1].split("&")[0];
-                        embed = `https://www.youtube.com/embed/${videoId}${listId ? `?list=${listId}` : ""}`;
-                      } else if (c.url.includes("youtu.be/")) {
-                        const videoId = c.url.split("youtu.be/")[1].split("?")[0];
-                        embed = `https://www.youtube.com/embed/${videoId}${listId ? `?list=${listId}` : ""}`;
-                      } else if (hasList) {
-                        embed = `https://www.youtube.com/embed/videoseries?list=${listId}`;
-                      }
-                      return embed;
-                    })()}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    title={c.title}
-                  />
-                </div>
-              </>
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground font-semibold rounded-xl text-xs hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Open YouTube Search Results</span>
+                </a>
+              </div>
             )}
 
             {/* For paid courses, show a CTA */}
@@ -411,7 +614,7 @@ export function DocumentViewer({
             )}
 
             {/* AI Transcript & Topics section */}
-            {c.platform === "YouTube" && (
+            {c.platform === "YouTube" && (getYoutubeVideoId(c.url) || getYoutubePlaylistId(c.url)) && (
               <div className="mt-8 border-t border-border/50 pt-8">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -420,17 +623,42 @@ export function DocumentViewer({
                       Video Content & Topics
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Extract structured topics and transcript directly from the video.
+                      {getYoutubeVideoId(c.url)
+                        ? "Extract structured topics and transcript directly from the video."
+                        : "Topics extraction is available for individual videos."}
                     </p>
                   </div>
-                  {!transcriptData && !loadingTranscript && (
-                    <button
-                      onClick={() => fetchTranscript(c.url)}
-                      className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg text-sm transition-colors"
-                    >
-                      Extract Topics
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {transcriptData && (
+                      <button
+                        onClick={handleDownloadTranscriptPdf}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 hover:text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                        title="Download transcript segments as PDF"
+                      >
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        <span>Download PDF</span>
+                      </button>
+                    )}
+                    {isExtractable === null ? (
+                      <span className="text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-lg border border-border flex items-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                        Checking availability...
+                      </span>
+                    ) : isExtractable === true ? (
+                      !transcriptData && !loadingTranscript && (
+                        <button
+                          onClick={() => fetchTranscript(c.url)}
+                          className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg text-sm transition-colors"
+                        >
+                          Extract Topics
+                        </button>
+                      )
+                    ) : (
+                      <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
+                        Transcript extraction not available
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {loadingTranscript && (
@@ -447,41 +675,128 @@ export function DocumentViewer({
                 )}
 
                 {transcriptData && (
-                  <div className="space-y-3 mt-4">
-                    {transcriptData.map((topic, index) => (
-                      <div key={index} className="border border-border/50 rounded-xl overflow-hidden bg-card">
-                        <button
-                          onClick={() => toggleTopic(index)}
-                          className="w-full flex items-center justify-between p-4 bg-muted/20 hover:bg-muted/40 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-mono font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
-                              {topic.title.split(' ')[2] /* Extracts the M:SS part */}
-                            </span>
-                            <span className="font-semibold text-left">{topic.title.split(' (')[0]}</span>
+                  <>
+                    {/* Tab Switcher */}
+                    <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/30 rounded-xl max-w-sm mb-6 mt-4">
+                      <button
+                        onClick={() => setVideoViewMode("topics")}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                          videoViewMode === "topics"
+                            ? "bg-primary text-primary-foreground shadow-md"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        }`}
+                      >
+                        <ListTree className="w-3.5 h-3.5" />
+                        Topics & Segments
+                      </button>
+                      <button
+                        onClick={() => setVideoViewMode("summary")}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                          videoViewMode === "summary"
+                            ? "bg-primary text-primary-foreground shadow-md"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        5-Sentence Summary
+                      </button>
+                    </div>
+
+                    {videoViewMode === "topics" ? (
+                      <div className="space-y-3">
+                        {transcriptData.map((topic, index) => (
+                          <div key={index} className="border border-border/50 rounded-xl overflow-hidden bg-card">
+                            <button
+                              onClick={() => toggleTopic(index)}
+                              className="w-full flex items-center justify-between p-4 bg-muted/20 hover:bg-muted/40 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-mono font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
+                                  {topic.title.split(' ')[2] /* Extracts the M:SS part */}
+                                </span>
+                                <span className="font-semibold text-left">{topic.title.split(' (')[0]}</span>
+                              </div>
+                              {expandedTopics[index] ? (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </button>
+                            
+                            {expandedTopics[index] && (
+                              <div className="p-4 border-t border-border/50 bg-background/50">
+                                <ul className="space-y-2">
+                                  {topic.subtopics.map((line, lineIdx) => (
+                                    <li key={lineIdx} className="text-sm text-muted-foreground flex items-start gap-2">
+                                      <span className="w-1 h-1 rounded-full bg-primary/40 shrink-0 mt-2"></span>
+                                      <span className="leading-relaxed">{line}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
-                          {expandedTopics[index] ? (
-                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                          )}
-                        </button>
-                        
-                        {expandedTopics[index] && (
-                          <div className="p-4 border-t border-border/50 bg-background/50">
-                            <ul className="space-y-2">
-                              {topic.subtopics.map((line, lineIdx) => (
-                                <li key={lineIdx} className="text-sm text-muted-foreground flex items-start gap-2">
-                                  <span className="w-1 h-1 rounded-full bg-primary/40 shrink-0 mt-2"></span>
-                                  <span className="leading-relaxed">{line}</span>
-                                </li>
-                              ))}
-                            </ul>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-4 animate-in fade-in duration-300">
+                        <div className="flex items-center justify-between p-4 bg-muted/20 border border-border/40 rounded-2xl">
+                          <div>
+                            <h4 className="font-semibold text-sm text-foreground">AI Generated Summary</h4>
+                            <p className="text-xs text-muted-foreground mt-0.5">Quick 5-sentence breakdown of this video</p>
+                          </div>
+                          <button
+                            onClick={handleToggleSummaryTts}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 shadow-sm cursor-pointer ${
+                              isSummaryTtsPlaying
+                                ? "bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 animate-pulse"
+                                : "bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+                            }`}
+                          >
+                            {isSummaryTtsPlaying ? (
+                              <>
+                                <span className="flex gap-0.5 items-center justify-center h-3 w-3 shrink-0">
+                                  <span className="w-0.5 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                                  <span className="w-0.5 h-3 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                                  <span className="w-0.5 h-1.5 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                                </span>
+                                <span>Stop Listening</span>
+                              </>
+                            ) : (
+                              <>
+                                <Volume2 className="w-3.5 h-3.5" />
+                                <span>Listen Summary</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {summarySentences.length > 0 ? (
+                          <div className="relative border-l-2 border-primary/20 ml-3 pl-6 space-y-6 py-2">
+                            {summarySentences.map((sentence, idx) => (
+                              <div key={idx} className="relative group">
+                                {/* Timeline dot */}
+                                <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-background border-2 border-primary flex items-center justify-center font-bold text-[8px] text-primary shadow-sm group-hover:scale-110 transition-transform">
+                                  {idx + 1}
+                                </div>
+                                
+                                {/* Sentence box */}
+                                <div className="p-4 bg-card hover:bg-muted/30 border border-border/50 hover:border-primary/20 rounded-xl transition-all duration-200 shadow-sm hover:shadow">
+                                  <p className="text-sm text-foreground leading-relaxed">
+                                    {sentence}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-8 text-center text-sm text-muted-foreground border border-dashed border-border/50 rounded-xl bg-card">
+                            No summary sentences could be extracted from this transcript.
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
