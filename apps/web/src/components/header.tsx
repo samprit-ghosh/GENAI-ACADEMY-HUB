@@ -95,7 +95,7 @@ export function Header({
                 : ""
             }`}
           >
-            Share Notes
+            Share Me
           </Link>
           <Link
             href="/about"
@@ -184,7 +184,7 @@ export function Header({
                   isLinkActive("/notes") ? "text-slate-100 bg-slate-900/50" : "text-slate-400 hover:text-foreground"
                 }`}
               >
-                Share Notes
+                Share Me
               </Link>
               <Link 
                 href="/about" 

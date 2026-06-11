@@ -20,8 +20,22 @@ import {
   Calendar,
   AlertCircle,
   HelpCircle,
-  Link as LinkIcon
+  Link as LinkIcon,
+  UploadCloud,
+  File,
+  Image,
+  Trash2,
+  Loader2,
+  Eye
 } from "lucide-react";
+
+interface NoteAttachment {
+  name: string;
+  url: string;
+  type: "image" | "pdf";
+  size?: number;
+  pages?: number;
+}
 
 interface NoteData {
   title: string;
@@ -30,6 +44,7 @@ interface NoteData {
   theme: string;
   date: string;
   viewLimit?: number; // 0 = unlimited, 1 = 1 view, 2 = 2 views
+  attachment?: NoteAttachment;
 }
 
 const THEMES = [
@@ -176,6 +191,9 @@ export default function NotesClientPage() {
   const [viewLimit, setViewLimit] = useState(0); // 0 = unlimited, 1 = 1 view, 2 = 2 views
   const [copied, setCopied] = useState(false);
   const [generatedLink, setGeneratedLink] = useState("");
+  const [attachment, setAttachment] = useState<NoteAttachment | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Viewer State
   const [isViewMode, setIsViewMode] = useState(false);
@@ -311,7 +329,8 @@ export default function NotesClientPage() {
       text: text.trim(),
       theme: selectedTheme,
       date: today,
-      viewLimit: viewLimit
+      viewLimit: viewLimit,
+      ...(attachment ? { attachment } : {})
     };
 
     const hash = encodeNote(notePayload);
@@ -348,6 +367,8 @@ export default function NotesClientPage() {
     setIsViewMode(false);
     setIsSelfDestructed(false);
     setCurrentViewNumber(0);
+    setAttachment(null);
+    setUploadError(null);
   };
 
   if (!mounted) {
@@ -493,6 +514,68 @@ export default function NotesClientPage() {
                       ))}
                     </div>
 
+                    {viewerNote.attachment && (
+                      <div className="relative rounded-2xl border border-slate-800 bg-slate-950/40 overflow-hidden flex flex-col gap-2 p-3 relative z-10 max-w-full">
+                        <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-1 px-1">Attached file</span>
+                        
+                        {viewerNote.attachment.type === "image" ? (
+                          <div className="relative rounded-xl overflow-hidden max-h-[450px] w-full flex items-center justify-center bg-slate-950 border border-slate-900/60 p-2 shadow-inner">
+                            <img 
+                              src={viewerNote.attachment.url} 
+                              alt={viewerNote.attachment.name} 
+                              className="max-h-[420px] w-auto object-contain rounded-lg hover:scale-101 transition-transform duration-300 cursor-zoom-in"
+                              onClick={() => window.open(viewerNote.attachment!.url, "_blank")}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-3 w-full">
+                            <div className="p-4 bg-slate-950/80 rounded-xl flex flex-wrap sm:flex-nowrap items-center justify-between border border-slate-850 gap-4">
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                                  <File className="w-5 h-5 text-red-400" />
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs font-bold text-slate-200 truncate pr-2">{viewerNote.attachment.name}</span>
+                                  <span className="text-[10px] text-slate-500 font-semibold uppercase">
+                                    PDF Document • {viewerNote.attachment.size ? `${(viewerNote.attachment.size / (1024 * 1024)).toFixed(2)} MB` : ""}
+                                    {viewerNote.attachment.pages && viewerNote.attachment.pages > 0 ? ` • ${viewerNote.attachment.pages} ${viewerNote.attachment.pages === 1 ? 'page' : 'pages'}` : ""}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 shrink-0">
+                                <a 
+                                  href={viewerNote.attachment.url} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 text-slate-200 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                                  View Document
+                                </a>
+                                <a 
+                                  href={viewerNote.attachment.url} 
+                                  download={viewerNote.attachment.name}
+                                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-550 text-white font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                                >
+                                  Download
+                                </a>
+                              </div>
+                            </div>
+                            
+                            {/* Interactive PDF Document Viewer */}
+                            <div className="w-full h-[450px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950 relative shadow-inner">
+                              <iframe
+                                src={viewerNote.attachment.url}
+                                className="w-full h-full border-none"
+                                title="PDF Document Viewer"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Text-To-Speech (TTS) Reader Controls */}
                     <div className="mt-4 pt-6 border-t border-slate-800/80 flex flex-col gap-4 relative z-10">
                       <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Note Vocal Guide</span>
@@ -618,7 +701,7 @@ export default function NotesClientPage() {
               <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent flex items-center gap-3.5">
                   <BrandedLogo size="md" animate={true} />
-                  Database-less Note Sharer
+                Share Me
                 </h1>
                 <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
                   Write beautiful notes, custom thoughts, or summaries. We serialize all content directly inside a sharing URL, meaning no DB accounts, tracking, or database records are ever saved.
@@ -713,6 +796,111 @@ export default function NotesClientPage() {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* File Attachment Upload */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Attachment (Photo or PDF)</span>
+                  
+                  {!attachment ? (
+                    <div className={`relative border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-all bg-slate-950/50 hover:bg-slate-900/40 ${uploadError ? 'border-red-500/40' : 'border-slate-800 hover:border-slate-700'}`}>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          // Validate client-side size limit (5MB)
+                          if (file.size > 5 * 1024 * 1024) {
+                            setUploadError("File size exceeds 5MB limit.");
+                            return;
+                          }
+                          
+                          setIsUploading(true);
+                          setUploadError(null);
+                          
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          
+                          try {
+                            const res = await fetch("/api/notes/upload", {
+                              method: "POST",
+                              body: formData,
+                            });
+                            
+                            if (!res.ok) {
+                              const errData = await res.json();
+                              throw new Error(errData.error || "Upload failed");
+                            }
+                            
+                            const data = await res.json();
+                            setAttachment({
+                              name: data.name,
+                              url: data.url,
+                              type: data.type,
+                              size: data.size,
+                              pages: data.pages,
+                            });
+                          } catch (err: any) {
+                            console.error("Upload error", err);
+                            setUploadError(err.message || "Failed to upload file.");
+                          } finally {
+                            setIsUploading(false);
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        disabled={isUploading}
+                      />
+                      
+                      {isUploading ? (
+                        <div className="flex flex-col items-center gap-2 text-slate-400">
+                          <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                          <span className="text-xs font-semibold">Uploading attachment...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 text-center text-slate-400 pointer-events-none">
+                          <UploadCloud className="w-8 h-8 text-indigo-400" />
+                          <span className="text-xs font-semibold">Drag & drop or click to upload</span>
+                          <span className="text-[10px] text-slate-500">Supports JPG, PNG, WEBP, GIF, or PDF (Max 5MB)</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
+                          {attachment.type === "image" ? (
+                            <Image className="w-5 h-5 text-emerald-400" />
+                          ) : (
+                            <File className="w-5 h-5 text-red-400" />
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-slate-200 truncate pr-2">{attachment.name}</span>
+                          <span className="text-[10px] text-slate-500 font-semibold uppercase">
+                            {attachment.type} • {attachment.size ? `${(attachment.size / (1024 * 1024)).toFixed(2)} MB` : ""}
+                            {attachment.pages && attachment.pages > 0 ? ` • ${attachment.pages} ${attachment.pages === 1 ? 'page' : 'pages'}` : ""}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAttachment(null)}
+                        className="p-2 text-slate-400 hover:text-red-400 rounded-lg hover:bg-slate-900 transition-colors shrink-0"
+                        title="Remove Attachment"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                  
+                  {uploadError && (
+                    <span className="text-[10px] font-bold text-red-400 flex items-center gap-1 mt-0.5">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {uploadError}
+                    </span>
+                  )}
                 </div>
 
                 {/* Content Area */}
@@ -844,6 +1032,54 @@ export default function NotesClientPage() {
                     <span className="text-slate-600 italic">No content written yet. Start typing on the left to see it styled here.</span>
                   )}
                 </div>
+
+                {/* Attachment Preview */}
+                {attachment && (
+                  <div className="relative rounded-2xl border border-slate-800 bg-slate-950/60 overflow-hidden flex flex-col gap-2 p-2 relative z-10 max-w-full">
+                    {attachment.type === "image" ? (
+                      <div className="relative rounded-xl overflow-hidden max-h-[250px] w-full flex items-center justify-center bg-slate-900 border border-slate-800">
+                        <img 
+                          src={attachment.url} 
+                          alt={attachment.name} 
+                          className="max-h-[250px] w-auto object-contain hover:scale-101 transition-transform duration-300"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2 w-full">
+                        <div className="p-3 bg-slate-900/50 rounded-xl flex items-center justify-between border border-slate-800/80 gap-3">
+                          <div className="flex items-center gap-2.5 overflow-hidden">
+                            <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                              <File className="w-4 h-4 text-red-400" />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[11px] font-bold text-slate-200 truncate">{attachment.name}</span>
+                              <span className="text-[9px] text-slate-500 font-bold uppercase">
+                                PDF Document{attachment.pages && attachment.pages > 0 ? ` • ${attachment.pages} ${attachment.pages === 1 ? 'page' : 'pages'}` : ""}
+                              </span>
+                            </div>
+                          </div>
+                          <a 
+                            href={attachment.url} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-100 font-bold text-[10px] transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                          >
+                            <Eye className="w-3 h-3" />
+                            Open
+                          </a>
+                        </div>
+                        {/* Interactive PDF Preview Iframe */}
+                        <div className="w-full h-[220px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950 relative">
+                          <iframe
+                            src={`${attachment.url}#toolbar=0`}
+                            className="w-full h-full border-none"
+                            title="PDF Preview"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Vocal Reader Preview */}
                 <div className="mt-2 pt-4 border-t border-slate-800/60 flex items-center gap-3.5 relative z-10">
