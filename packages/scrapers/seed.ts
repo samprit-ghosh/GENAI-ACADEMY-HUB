@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // console.log('Seeding database...');
+ 
 
   // Create some ArXiv papers
   const papers = [
@@ -57,7 +57,7 @@ async function main() {
     });
   }
 
-  // console.log('Seeding finished.');
+
 }
 
 main()
